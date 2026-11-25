@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint (yamllint, kubeconform, shellcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: yamllint
+        run: |
+          pip install --quiet yamllint==1.35.1
+          yamllint -c .yamllint.yaml .
+
+      - name: kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary -ignore-missing-schemas scenarios/
+
+      - name: shellcheck
+        run: shellcheck -S warning scripts/*.sh scenarios/*/*.sh
+
+  verify:
+    name: Verificar los escenarios en kind
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Crear el cluster kind
+        uses: helm/kind-action@v1
+        with:
+          config: kind/cluster.yaml
+          cluster_name: troubleshooting-lab
+
+      - name: Instalar ingress-nginx
+        run: scripts/lab.sh up
+
+      - name: Verificar todos los escenarios (síntoma y recuperación)
+        run: scripts/verify-all.sh
+
+      - name: Diagnóstico si falla
+        if: failure()
+        run: |
+          kubectl get pods -A
+          kubectl get events -A --sort-by=.lastTimestamp | tail -n 60
