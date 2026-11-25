@@ -1,0 +1,14 @@
+# Cluster del laboratorio: 1 control-plane (con ingress-ready) + 1 worker.
+# Los workloads de los escenarios caen en el worker (el control-plane tiene taint).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: troubleshooting-lab
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+  - role: worker

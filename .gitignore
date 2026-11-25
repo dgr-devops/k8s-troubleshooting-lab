@@ -1,0 +1,10 @@
+# Temporales y artefactos locales
+*.log
+*.tmp
+.env
+.env.*
+kubeconfig*
+out/
+.venv/
+.vscode/
+.idea/
